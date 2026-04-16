@@ -3,6 +3,7 @@ import { apiClient } from './client.js';
 import { loadConfig } from './config.js';
 import { getTools } from './tools/index.js';
 import type { Message, Config } from './types.js';
+import { startTUI } from './tui.js';
 
 // ANSI colors
 const RESET = '\x1b[0m';
@@ -157,4 +158,11 @@ async function readline(prompt: string): Promise<string> {
   });
 }
 
-runLoop().catch(console.error);
+// Check for --tui flag
+const isTUI = process.argv.includes('--tui');
+
+if (isTUI) {
+  startTUI().catch(console.error);
+} else {
+  runLoop().catch(console.error);
+}
