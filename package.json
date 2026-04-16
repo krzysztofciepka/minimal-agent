@@ -8,7 +8,9 @@
     "start": "bun run src/cli.ts",
     "dev": "bun run src/cli.ts",
     "tui": "bun run src/cli.ts --tui",
-    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "build": "bun run scripts/build.ts",
+    "build:all": "bun run scripts/build.ts --all",
     "test": "bun test"
   },
   "dependencies": {
