@@ -110,14 +110,16 @@ async function runLoop(): Promise<void> {
   }
 }
 
-// Simple readline for Bun
-function readline(prompt: string): Promise<string> {
+// Readline for Bun/Node
+async function readline(prompt: string): Promise<string> {
+  const readline = await import('readline');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
   return new Promise((resolve) => {
-    // @ts-ignore - Bun has global readline
-    globalThis.readline?.({
-      prompt,
-      colored: true,
-    }, (_: unknown, answer: string) => {
+    rl.question(prompt, (answer: string) => {
+      rl.close();
       resolve(answer);
     });
   });
