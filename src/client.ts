@@ -40,10 +40,14 @@ export class APIClient {
     messages: Message[],
     tools: unknown[]
   ): Promise<{ message: Message; toolResults: Array<{ toolCallId: string; result: ToolResult }> }> {
+    // Skip tools for models that don't support them well
+    const model = this.model.toLowerCase();
+    const useTools = !model.includes('minimax');
+
     const response = await this.chat({
       model: this.model,
       messages,
-      tools,
+      tools: useTools ? tools : undefined,
     });
 
     const choice = response.choices[0];
