@@ -2,7 +2,7 @@
 import { apiClient } from './client.js';
 import { loadConfig } from './config.js';
 import { getTools } from './tools/index.js';
-import type { Message } from './types.js';
+import type { Message, Config } from './types.js';
 
 const HELP = `minimal-agent - CLI coding agent
 
@@ -15,8 +15,24 @@ Commands:
 
 Type your request and press Enter to start.`;
 
+const SEPARATOR = '─'.repeat(60);
+
 let messages: Message[] = [];
 let running = true;
+let config: Config | null = null;
+
+function printStatusBar(): void {
+  if (!config) return;
+  const model = config.active_model;
+  const provider = config.active_provider;
+  console.log(`\n${SEPARATOR}`);
+  console.log(` model: ${model} | provider: ${provider}`);
+  console.log(SEPARATOR);
+}
+
+function printPrompt(): void {
+  process.stdout.write('\n> ');
+}
 
 async function buildContext(userMessage: string): Promise<string> {
   try {
@@ -68,23 +84,31 @@ async function handleSlashCommand(input: string): Promise<boolean> {
 
 async function runLoop(): Promise<void> {
   await apiClient.init();
-  const config = await loadConfig();
+  config = await loadConfig();
   const tools = getTools();
 
+  console.clear();
   console.log('minimal-agent ready');
   console.log(`Provider: ${config.active_provider} | Model: ${config.active_model}`);
   console.log(`Tools: ${tools.map(t => t.name).join(', ')}`);
   console.log('');
 
+  printStatusBar();
+
   while (running) {
-    const input = await readline('> ');
+    printPrompt();
+    const input = await readline('');
     if (!input.trim()) continue;
 
     // Check for slash commands
     if (input.startsWith('/')) {
       const handled = await handleSlashCommand(input);
-      if (handled) continue;
+      if (handled) {
+        printStatusBar();
+        continue;
+      }
       console.log('Unknown command. Type /help for available commands.');
+      printStatusBar();
       continue;
     }
 
@@ -98,14 +122,16 @@ async function runLoop(): Promise<void> {
 
       if (response.toolResults.length > 0) {
         // Handle tool execution here (placeholder for now)
-        console.log('Tool results:', response.toolResults);
+        console.log('\nTool results:', response.toolResults);
       }
 
-      console.log(response.message.content);
+      console.log('\n' + response.message.content);
       messages.push(response.message);
+      printStatusBar();
     } catch (err) {
-      console.error('Error:', err);
+      console.error('\nError:', err);
       messages.pop(); // Remove failed user message
+      printStatusBar();
     }
   }
 }
