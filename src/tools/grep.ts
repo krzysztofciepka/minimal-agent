@@ -4,6 +4,7 @@ import { stat } from 'fs';
 import { join } from 'path';
 import { z } from 'zod';
 import type { Tool, ToolResult } from '../types.js';
+import { expandPath } from './paths.js';
 
 const paramsSchema = z.object({
   pattern: z.string().describe('Regular expression to search for'),
@@ -43,7 +44,7 @@ export const grepTool: Tool = {
         }
       }
 
-      await searchDir(path);
+      await searchDir(expandPath(path));
 
       if (results.length === 0) {
         return { content: 'No matches found' };

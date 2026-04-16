@@ -4,6 +4,7 @@ import { mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import { z } from 'zod';
 import type { Tool, ToolResult } from '../types.js';
+import { expandPath } from './paths.js';
 
 const paramsSchema = z.object({
   file_path: z.string().describe('Path to write to'),
@@ -18,12 +19,12 @@ export const fileWriteTool: Tool = {
     const { file_path, content } = paramsSchema.parse(params);
 
     try {
-      // Ensure directory exists
-      const dir = dirname(file_path);
+      const resolved = expandPath(file_path);
+      const dir = dirname(resolved);
       await mkdir(dir, { recursive: true });
 
-      await writeFile(file_path, content);
-      return { content: `File written: ${file_path}` };
+      await writeFile(resolved, content);
+      return { content: `File written: ${resolved}` };
     } catch (error) {
       return {
         content: `Error writing file: ${error}`,

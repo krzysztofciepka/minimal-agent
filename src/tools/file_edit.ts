@@ -2,6 +2,7 @@
 import { readFile, writeFile } from 'fs/promises';
 import { z } from 'zod';
 import type { Tool, ToolResult } from '../types.js';
+import { expandPath } from './paths.js';
 
 const paramsSchema = z.object({
   file_path: z.string().describe('Path to the file to edit'),
@@ -17,7 +18,8 @@ export const fileEditTool: Tool = {
     const { file_path, old_string, new_string } = paramsSchema.parse(params);
 
     try {
-      const content = await readFile(file_path, 'utf-8');
+      const resolved = expandPath(file_path);
+      const content = await readFile(resolved, 'utf-8');
 
       if (!content.includes(old_string)) {
         return {
@@ -27,9 +29,9 @@ export const fileEditTool: Tool = {
       }
 
       const newContent = content.replace(old_string, new_string);
-      await writeFile(file_path, newContent);
+      await writeFile(resolved, newContent);
 
-      return { content: `File edited: ${file_path}` };
+      return { content: `File edited: ${resolved}` };
     } catch (error) {
       return {
         content: `Error editing file: ${error}`,

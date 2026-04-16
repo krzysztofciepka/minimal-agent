@@ -2,6 +2,7 @@
 import { readFile } from 'fs/promises';
 import { z } from 'zod';
 import type { Tool, ToolResult } from '../types.js';
+import { expandPath } from './paths.js';
 
 const paramsSchema = z.object({
   file_path: z.string().describe('Path to the file to read'),
@@ -15,7 +16,7 @@ export const fileReadTool: Tool = {
     const { file_path } = paramsSchema.parse(params);
 
     try {
-      const content = await readFile(file_path, 'utf-8');
+      const content = await readFile(expandPath(file_path), 'utf-8');
       return { content };
     } catch (error) {
       return {
