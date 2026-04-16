@@ -135,27 +135,30 @@ export function REPL(): React.ReactElement {
           { role: 'user', content: contextMessage },
         ]
 
-        const response = await apiClient.chatWithTools(newMessages)
-        const assistantContent =
-          typeof response.message.content === 'string'
-            ? response.message.content
-            : JSON.stringify(response.message.content)
+        const result = await apiClient.chatWithTools(newMessages, {
+          onToolCall: (exec) => {
+            const preview =
+              exec.args.length > 120 ? exec.args.slice(0, 117) + '...' : exec.args
+            setDisplayMessages((prev) => [
+              ...prev,
+              {
+                role: 'system',
+                content: `⚙  ${exec.name}(${preview})${exec.result.isError ? ' — error' : ''}`,
+              },
+            ])
+          },
+        })
 
-        setMessages([...newMessages, response.message])
+        const assistantContent =
+          typeof result.message.content === 'string'
+            ? result.message.content
+            : JSON.stringify(result.message.content)
+
+        setMessages(result.messages)
         setDisplayMessages((prev) => [
           ...prev,
           { role: 'assistant', content: assistantContent || '(no content)' },
         ])
-
-        if (response.toolResults.length > 0) {
-          setDisplayMessages((prev) => [
-            ...prev,
-            {
-              role: 'system',
-              content: `Tool results: ${JSON.stringify(response.toolResults, null, 2)}`,
-            },
-          ])
-        }
       } catch (err: any) {
         setDisplayMessages((prev) => [
           ...prev,

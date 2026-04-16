@@ -1,5 +1,7 @@
 // Tool registry and interface
 import type { Tool } from '../types.js';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import type { ZodTypeAny } from 'zod';
 import { fileReadTool } from './file_read.js';
 import { fileWriteTool } from './file_write.js';
 import { fileEditTool } from './file_edit.js';
@@ -45,16 +47,19 @@ export function getToolsAsFunctions(): Array<{
     parameters: Record<string, unknown>;
   };
 }> {
-  return tools.map(tool => ({
-    type: 'function',
-    function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: {
-        type: 'object',
-        properties: (tool.parameters as Record<string, unknown>).properties || {},
-        required: (tool.parameters as Record<string, unknown>).required || [],
+  return tools.map(tool => {
+    const schema = zodToJsonSchema(tool.parameters as ZodTypeAny, {
+      target: 'openApi3',
+      $refStrategy: 'none',
+    }) as Record<string, unknown>;
+    delete schema.$schema;
+    return {
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: schema,
       },
-    },
-  }));
+    };
+  });
 }
