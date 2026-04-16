@@ -15,13 +15,12 @@ import { apiClient } from '../client.js'
 import { loadConfig } from '../config.js'
 import type { Message, Config } from '../types.js'
 
-const ASCII_ART = `
-  __  __           _             _
-  \\ \\/ /__  _ __  | | _   _ ___(_) | |_
-   \\  // _ \\| '_ \\ | || | / __| | | __|
-    | | (_) | | | | || |_| \\__ \\ |_|
-    |_|\\___/|_| |_||___|___/\\___/\\__|
-`
+const ASCII_ART = `            _       _                 _                              _
+  _ __ ___ (_)_ __ (_)_ __ ___   __ _| |       __ _  __ _  ___ _ __ | |_
+ | '_ \` _ \\| | '_ \\| | '_ \` _ \\ / _\` | |_____ / _\` |/ _\` |/ _ \\ '_ \\| __|
+ | | | | | | | | | | | | | | | | (_| | |_____| (_| | (_| |  __/ | | | |_
+ |_| |_| |_|_|_| |_|_|_| |_| |_|\\__,_|_|      \\__,_|\\__, |\\___|_| |_|\\__|
+                                                    |___/`
 
 type DisplayMessage = {
   role: 'user' | 'assistant' | 'system'
@@ -231,15 +230,15 @@ export function REPL(): React.ReactElement {
           <Box key={idx} flexDirection="column" marginY={0}>
             {msg.role === 'user' && (
               <Box flexDirection="row">
-                <Text color="cyan" bold>
+                <Text color="magenta" bold>
                   {'> '}
                 </Text>
-                <Text color="white">{msg.content}</Text>
+                <Text color="magenta">{msg.content}</Text>
               </Box>
             )}
             {msg.role === 'assistant' && (
               <Box flexDirection="column" marginLeft={2}>
-                <Text color="green">{msg.content}</Text>
+                <Text color="white">{msg.content}</Text>
               </Box>
             )}
             {msg.role === 'system' && (
