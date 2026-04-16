@@ -15,12 +15,24 @@ import { apiClient } from '../client.js'
 import { loadConfig } from '../config.js'
 import type { Message, Config } from '../types.js'
 
-const ASCII_ART = `            _       _                 _                              _
-  _ __ ___ (_)_ __ (_)_ __ ___   __ _| |       __ _  __ _  ___ _ __ | |_
- | '_ \` _ \\| | '_ \\| | '_ \` _ \\ / _\` | |_____ / _\` |/ _\` |/ _ \\ '_ \\| __|
- | | | | | | | | | | | | | | | | (_| | |_____| (_| | (_| |  __/ | | | |_
- |_| |_| |_|_|_| |_|_|_| |_| |_|\\__,_|_|      \\__,_|\\__, |\\___|_| |_|\\__|
-                                                    |___/`
+const ASCII_ART_FULL = `            _       _                 _                          _
+  _ __ ___ (_)_ __ (_)_ __ ___   __ _| |   __ _  __ _  ___ _ __ | |_
+ | '_ \` _ \\| | '_ \\| | '_ \` _ \\ / _\` | |  / _\` |/ _\` |/ _ \\ '_ \\| __|
+ | | | | | | | | | | | | | | | | (_| | | | (_| | (_| |  __/ | | | |_
+ |_| |_| |_|_|_| |_|_|_| |_| |_|\\__,_|_|  \\__,_|\\__, |\\___|_| |_|\\__|
+                                                |___/`
+
+const ASCII_ART_COMPACT = `            _       _                 _
+  _ __ ___ (_)_ __ (_)_ __ ___   __ _| |
+ | '_ \` _ \\| | '_ \\| | '_ \` _ \\ / _\` | |
+ | | | | | | | | | | | | | | | | (_| | |
+ |_| |_| |_|_|_| |_|_|_| |_| |_|\\__,_|_|
+                    agent`
+
+const ASCII_ART_TINY = 'minimal-agent'
+
+const FULL_BANNER_WIDTH = 72
+const COMPACT_BANNER_WIDTH = 42
 
 type DisplayMessage = {
   role: 'user' | 'assistant' | 'system'
@@ -219,10 +231,18 @@ export function REPL(): React.ReactElement {
   const atCursor = input.slice(cursorPosition, cursorPosition + 1) || ' '
   const afterCursor = input.slice(cursorPosition + 1)
 
+  const cols = terminalSize?.columns ?? 80
+  const banner =
+    cols >= FULL_BANNER_WIDTH
+      ? ASCII_ART_FULL
+      : cols >= COMPACT_BANNER_WIDTH
+        ? ASCII_ART_COMPACT
+        : ASCII_ART_TINY
+
   return (
     <Box flexDirection="column" width="100%">
       <Box flexDirection="column" paddingX={1}>
-        <Text color="cyan">{ASCII_ART}</Text>
+        <Text color="ansi:cyan">{banner}</Text>
       </Box>
 
       <Box flexDirection="column" paddingX={1}>
@@ -230,20 +250,20 @@ export function REPL(): React.ReactElement {
           <Box key={idx} flexDirection="column" marginY={0}>
             {msg.role === 'user' && (
               <Box flexDirection="row">
-                <Text color="magenta" bold>
+                <Text color="ansi:magentaBright" bold>
                   {'> '}
                 </Text>
-                <Text color="magenta">{msg.content}</Text>
+                <Text color="ansi:magentaBright">{msg.content}</Text>
               </Box>
             )}
             {msg.role === 'assistant' && (
               <Box flexDirection="column" marginLeft={2}>
-                <Text color="white">{msg.content}</Text>
+                <Text color="ansi:white">{msg.content}</Text>
               </Box>
             )}
             {msg.role === 'system' && (
               <Box flexDirection="column" marginLeft={2}>
-                <Text color="yellow" dimColor>
+                <Text color="ansi:yellow" dim>
                   {msg.content}
                 </Text>
               </Box>
@@ -252,7 +272,7 @@ export function REPL(): React.ReactElement {
         ))}
         {isLoading && (
           <Box marginLeft={2}>
-            <Text color="gray" dimColor>
+            <Text color="ansi:blackBright" dim>
               Thinking...
             </Text>
           </Box>
@@ -263,9 +283,9 @@ export function REPL(): React.ReactElement {
         flexDirection="row"
         paddingX={1}
         borderStyle="round"
-        borderColor="#56B4C9"
+        borderColor="ansi:cyan"
       >
-        <Text color="cyan" bold>
+        <Text color="ansi:cyan" bold>
           {'> '}
         </Text>
         <Text>{beforeCursor}</Text>
@@ -274,7 +294,7 @@ export function REPL(): React.ReactElement {
       </Box>
 
       <Box paddingX={1}>
-        <Text color="gray" dimColor>
+        <Text color="ansi:blackBright" dim>
           {config
             ? `${config.active_model} | ${config.active_provider}`
             : 'Loading...'}
