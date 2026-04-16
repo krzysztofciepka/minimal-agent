@@ -94,7 +94,7 @@ async function runLoop(): Promise<void> {
     messages.push({ role: 'user', content: contextMessage });
 
     try {
-      const response = await apiClient.chatWithTools(messages, tools as unknown[]);
+      const response = await apiClient.chatWithTools(messages);
 
       if (response.toolResults.length > 0) {
         // Handle tool execution here (placeholder for now)

@@ -35,3 +35,26 @@ export function getTools(): Tool[] {
 export function getToolByName(name: string): Tool | undefined {
   return tools.find(t => t.name === name);
 }
+
+// Convert tools to OpenAI function calling format
+export function getToolsAsFunctions(): Array<{
+  type: string;
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}> {
+  return tools.map(tool => ({
+    type: 'function',
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: {
+        type: 'object',
+        properties: (tool.parameters as Record<string, unknown>).properties || {},
+        required: (tool.parameters as Record<string, unknown>).required || [],
+      },
+    },
+  }));
+}

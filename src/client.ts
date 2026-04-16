@@ -1,6 +1,7 @@
 // OpenAI-compatible API client
 import type { Message, ChatCompletionRequest, ChatCompletionResponse, ToolResult } from './types.js';
 import { loadConfig } from './config.js';
+import { getToolsAsFunctions } from './tools/index.js';
 
 export class APIClient {
   private baseUrl: string = '';
@@ -37,17 +38,16 @@ export class APIClient {
   }
 
   async chatWithTools(
-    messages: Message[],
-    tools: unknown[]
+    messages: Message[]
   ): Promise<{ message: Message; toolResults: Array<{ toolCallId: string; result: ToolResult }> }> {
-    // Skip tools for models that don't support them well
+    // Skip tools for minimax - use getToolsAsFunctions format
     const model = this.model.toLowerCase();
-    const useTools = !model.includes('minimax');
+    const useTools = model.includes('minimax') ? getToolsAsFunctions() : undefined;
 
     const response = await this.chat({
       model: this.model,
       messages,
-      tools: useTools ? tools : undefined,
+      tools: useTools,
     });
 
     const choice = response.choices[0];
