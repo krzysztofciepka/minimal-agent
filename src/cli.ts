@@ -8,8 +8,6 @@ import type { Message, Config } from './types.js';
 const RESET = '\x1b[0m';
 const LIGHT_BLUE = '\x1b[36;1m';
 const CYAN = '\x1b[36m';
-const YELLOW = '\x1b[33m';
-const MAGENTA = '\x1b[35m';
 
 const HELP = `minimal-agent - CLI coding agent
 
@@ -92,37 +90,27 @@ async function runLoop(): Promise<void> {
   console.log(`Tools: ${tools.map(t => t.name).join(', ')}`);
   console.log('');
 
-  // Print initial separator and status (shown at bottom)
-  console.log(SEPARATOR);
-  console.log(getStatusLine());
-  console.log(SEPARATOR);
-
   while (running) {
-    // Print chat history in different colors
-    for (const msg of messages) {
-      if (msg.role === 'user') {
-        console.log(YELLOW + '> ' + msg.content.substring(0, 100) + '...' + RESET);
-      } else if (msg.role === 'assistant') {
-        console.log(MAGENTA + msg.content.substring(0, 100) + '...' + RESET);
-      }
-    }
+    // Print separator above prompt
+    console.log(SEPARATOR);
 
-    // Print prompt with separator above it
-    console.log(LIGHT_BLUE + '> ' + RESET);
+    // Print prompt (light blue)
+    process.stdout.write(LIGHT_BLUE + '> ' + RESET);
     const input = await readline('');
     if (!input.trim()) continue;
+
+    // Print separator below prompt
+    console.log(SEPARATOR);
 
     // Check for slash commands
     if (input.startsWith('/')) {
       const handled = await handleSlashCommand(input);
       if (handled) {
-        console.log(SEPARATOR);
         console.log(getStatusLine());
         console.log(SEPARATOR);
         continue;
       }
       console.log('Unknown command. Type /help for available commands.');
-      console.log(SEPARATOR);
       console.log(getStatusLine());
       console.log(SEPARATOR);
       continue;
@@ -137,23 +125,19 @@ async function runLoop(): Promise<void> {
       const response = await apiClient.chatWithTools(messages);
 
       if (response.toolResults.length > 0) {
-        console.log('\nTool results:', response.toolResults);
+        console.log('Tool results:', response.toolResults);
       }
 
-      // Print response (without coloring the current message)
-      console.log('\n' + response.message.content);
+      // Print response
+      console.log(response.message.content);
       messages.push(response.message);
 
-      // Print separator and status at bottom
-      console.log(SEPARATOR);
+      // Print status at bottom
       console.log(getStatusLine());
-      console.log(SEPARATOR);
     } catch (err) {
-      console.error('\nError:', err);
+      console.error('Error:', err);
       messages.pop();
-      console.log(SEPARATOR);
       console.log(getStatusLine());
-      console.log(SEPARATOR);
     }
   }
 }
