@@ -5,7 +5,10 @@
  */
 
 import * as React from 'react'
-import { useState, useCallback, useEffect, useContext } from 'react'
+import { useState, useCallback, useEffect, useContext, useRef } from 'react'
+import { readFile, readdir } from 'fs/promises'
+import { join } from 'path'
+import { homedir } from 'os'
 import Box from '../ink/components/Box.js'
 import Text from '../ink/components/Text.js'
 import useInput from '../ink/hooks/use-input.js'
@@ -22,6 +25,20 @@ import {
   handleConfigCmd,
 } from '../commands/index.js'
 import type { Message, Config } from '../types.js'
+
+const SKILLS_DIR = join(homedir(), '.claude', 'skills')
+
+async function loadSkillContent(name: string): Promise<string | null> {
+  try {
+    const skillDir = join(SKILLS_DIR, name)
+    const files = await readdir(skillDir)
+    const mdFile = files.find((f) => f.endsWith('.md'))
+    if (!mdFile) return null
+    return await readFile(join(skillDir, mdFile), 'utf-8')
+  } catch {
+    return null
+  }
+}
 
 const ASCII_ART_FULL = `            _       _                 _                          _
   _ __ ___ (_)_ __ (_)_ __ ___   __ _| |   __ _  __ _  ___ _ __ | |_
@@ -84,6 +101,9 @@ export function REPL(): React.ReactElement {
   const [cursorPosition, setCursorPosition] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [history, setHistory] = useState<string[]>([])
+  const [historyIndex, setHistoryIndex] = useState<number>(-1)
+  const savedDraft = useRef<string>('')
 
   useEffect(() => {
     async function init() {
@@ -103,10 +123,59 @@ export function REPL(): React.ReactElement {
     void init()
   }, [])
 
+  const sendToLLM = useCallback(
+    async (promptBody: string, displayText: string) => {
+      setDisplayMessages((prev) => [...prev, { role: 'user', content: displayText }])
+      setIsLoading(true)
+
+      try {
+        const contextMessage = await buildContext(promptBody)
+        const newMessages: Message[] = [
+          ...messages,
+          { role: 'user', content: contextMessage },
+        ]
+
+        const response = await apiClient.chatWithTools(newMessages)
+        const assistantContent =
+          typeof response.message.content === 'string'
+            ? response.message.content
+            : JSON.stringify(response.message.content)
+
+        setMessages([...newMessages, response.message])
+        setDisplayMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: assistantContent || '(no content)' },
+        ])
+
+        if (response.toolResults.length > 0) {
+          setDisplayMessages((prev) => [
+            ...prev,
+            {
+              role: 'system',
+              content: `Tool results: ${JSON.stringify(response.toolResults, null, 2)}`,
+            },
+          ])
+        }
+      } catch (err: any) {
+        setDisplayMessages((prev) => [
+          ...prev,
+          { role: 'system', content: `Error: ${err?.message ?? String(err)}` },
+        ])
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [messages]
+  )
+
   const handleSubmit = useCallback(
     async (text: string) => {
       const trimmed = text.trim()
       if (!trimmed) return
+
+      setHistory((h) => (h[h.length - 1] === trimmed ? h : [...h, trimmed]))
+      setHistoryIndex(-1)
+      savedDraft.current = ''
 
       if (trimmed.startsWith('/')) {
         const parts = trimmed.slice(1).split(/\s+/)
@@ -155,53 +224,25 @@ export function REPL(): React.ReactElement {
           case 'config':
             pushSystem(await handleConfigCmd(args))
             return
-          default:
-            pushSystem(`Unknown command: /${cmd}. Type /help.`)
+          default: {
+            const skillContent = await loadSkillContent(cmd)
+            if (skillContent) {
+              pushSystem(`Invoking skill: ${cmd}${args.length ? ` ${args.join(' ')}` : ''}`)
+              const skillInvocation = args.length
+                ? `${skillContent}\n\n---\n\nArguments: ${args.join(' ')}`
+                : skillContent
+              await sendToLLM(skillInvocation, `/${cmd}${args.length ? ' ' + args.join(' ') : ''}`)
+              return
+            }
+            pushSystem(`Unknown command: /${cmd}. Type /help or /skills to see options.`)
             return
+          }
         }
       }
 
-      setDisplayMessages((prev) => [...prev, { role: 'user', content: trimmed }])
-      setIsLoading(true)
-
-      try {
-        const contextMessage = await buildContext(trimmed)
-        const newMessages: Message[] = [
-          ...messages,
-          { role: 'user', content: contextMessage },
-        ]
-
-        const response = await apiClient.chatWithTools(newMessages)
-        const assistantContent =
-          typeof response.message.content === 'string'
-            ? response.message.content
-            : JSON.stringify(response.message.content)
-
-        setMessages([...newMessages, response.message])
-        setDisplayMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: assistantContent || '(no content)' },
-        ])
-
-        if (response.toolResults.length > 0) {
-          setDisplayMessages((prev) => [
-            ...prev,
-            {
-              role: 'system',
-              content: `Tool results: ${JSON.stringify(response.toolResults, null, 2)}`,
-            },
-          ])
-        }
-      } catch (err: any) {
-        setDisplayMessages((prev) => [
-          ...prev,
-          { role: 'system', content: `Error: ${err?.message ?? String(err)}` },
-        ])
-      } finally {
-        setIsLoading(false)
-      }
+      await sendToLLM(trimmed, trimmed)
     },
-    [messages, exit]
+    [sendToLLM, exit]
   )
 
   useInput(
@@ -242,6 +283,33 @@ export function REPL(): React.ReactElement {
         return
       }
 
+      if (key.upArrow) {
+        if (history.length === 0) return
+        const nextIdx = historyIndex === -1 ? history.length - 1 : Math.max(0, historyIndex - 1)
+        if (historyIndex === -1) savedDraft.current = input
+        const recalled = history[nextIdx]
+        setHistoryIndex(nextIdx)
+        setInput(recalled)
+        setCursorPosition(recalled.length)
+        return
+      }
+
+      if (key.downArrow) {
+        if (historyIndex === -1) return
+        const nextIdx = historyIndex + 1
+        if (nextIdx >= history.length) {
+          setHistoryIndex(-1)
+          setInput(savedDraft.current)
+          setCursorPosition(savedDraft.current.length)
+        } else {
+          const recalled = history[nextIdx]
+          setHistoryIndex(nextIdx)
+          setInput(recalled)
+          setCursorPosition(recalled.length)
+        }
+        return
+      }
+
       if (key.home) {
         setCursorPosition(0)
         return
@@ -253,6 +321,10 @@ export function REPL(): React.ReactElement {
       }
 
       if (char && !key.ctrl && !key.meta && !key.tab && !key.escape) {
+        if (historyIndex !== -1) {
+          setHistoryIndex(-1)
+          savedDraft.current = ''
+        }
         setInput(
           (prev) => prev.slice(0, cursorPosition) + char + prev.slice(cursorPosition)
         )
