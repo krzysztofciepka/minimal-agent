@@ -4,6 +4,7 @@
  * Launches the terminal UI using OpenClaude's custom Ink rendering engine.
  */
 
+import * as React from 'react'
 import { createRoot } from './ink/root.js'
 import { REPL } from './components/REPL.js'
 

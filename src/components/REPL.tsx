@@ -264,7 +264,7 @@ export function REPL(): React.ReactElement {
         flexDirection="row"
         paddingX={1}
         borderStyle="round"
-        borderColor="cyan"
+        borderColor="#56B4C9"
       >
         <Text color="cyan" bold>
           {'> '}
