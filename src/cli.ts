@@ -4,6 +4,10 @@ import { loadConfig } from './config.js';
 import { getTools } from './tools/index.js';
 import type { Message, Config } from './types.js';
 
+// ANSI colors
+const RESET = '\x1b[0m';
+const LIGHT_BLUE = '\x1b[36;1m';
+
 const HELP = `minimal-agent - CLI coding agent
 
 Usage: bun run src/cli.ts
@@ -26,7 +30,7 @@ function printSeparator(): void {
 }
 
 function printPrompt(): void {
-  process.stdout.write('\n> ');
+  process.stdout.write('\n' + LIGHT_BLUE + '> ' + RESET);
 }
 
 function getStatusLine(): string {
