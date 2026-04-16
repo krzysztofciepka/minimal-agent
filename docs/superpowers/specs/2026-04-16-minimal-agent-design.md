@@ -237,6 +237,67 @@ MCP servers configured in `config.mcp_servers`. Each server:
 
 ---
 
+## Context Management
+
+### Global Configuration Files
+
+The agent **always** includes these files in the context for every request:
+
+| File | Location | Purpose |
+|------|---------|---------|
+| **CLAUDE.md** | `~/CLAUDE.md` | Global instructions for the agent |
+| **AGENTS.md** | `~/AGENTS.md` | Multi-agent coordination instructions |
+
+These files are loaded at session start and prepended to every conversation context so the agent follows user preferences.
+
+### How It Works
+
+```typescript
+async function buildContext(userMessage: string): Promise<string> {
+  const claudeMd = await readFile('~/CLAUDE.md').catch(() => '');
+  const agentsMd = await readFile('~/AGENTS.md').catch(() => '');
+
+  return [
+    claudeMd ? `# CLAUDE.md\n${claudeMd}` : '',
+    agentsMd ? `# AGENTS.md\n${agentsMd}` : '',
+    userMessage
+  ].filter(Boolean).join('\n\n---\n\n');
+}
+```
+
+### CLAUDE.md Example
+
+```markdown
+# CLAUDE.md
+
+## Preferences
+
+- Always use TDD for new features
+- Don't create files unless necessary
+- Prefer Edit over Write
+- Run tests before marking complete
+
+## Project Conventions
+
+- TypeScript/Bun
+- Tests in __tests__ directory
+- ESLint + Prettier
+```
+
+### AGENTS.md Example
+
+```markdown
+# AGENTS.md
+
+## Agent Routing
+
+- Research tasks: use explore agent
+- Planning: use plan agent
+- Implementation: use subagent-driven-development
+```
+
+---
+
 ## Self-Documentation
 
 ### Purpose
