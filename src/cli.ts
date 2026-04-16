@@ -8,6 +8,8 @@ import type { Message, Config } from './types.js';
 const RESET = '\x1b[0m';
 const LIGHT_BLUE = '\x1b[36;1m';
 const CYAN = '\x1b[36m';
+const YELLOW = '\x1b[33m';
+const MAGENTA = '\x1b[35m';
 
 const HELP = `minimal-agent - CLI coding agent
 
@@ -96,6 +98,15 @@ async function runLoop(): Promise<void> {
   console.log(SEPARATOR);
 
   while (running) {
+    // Print chat history in different colors
+    for (const msg of messages) {
+      if (msg.role === 'user') {
+        console.log(YELLOW + '> ' + msg.content.substring(0, 100) + '...' + RESET);
+      } else if (msg.role === 'assistant') {
+        console.log(MAGENTA + msg.content.substring(0, 100) + '...' + RESET);
+      }
+    }
+
     // Print prompt with separator above it
     console.log(LIGHT_BLUE + '> ' + RESET);
     const input = await readline('');
@@ -129,7 +140,7 @@ async function runLoop(): Promise<void> {
         console.log('\nTool results:', response.toolResults);
       }
 
-      // Print response
+      // Print response (without coloring the current message)
       console.log('\n' + response.message.content);
       messages.push(response.message);
 
