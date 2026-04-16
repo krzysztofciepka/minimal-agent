@@ -13,6 +13,14 @@ import useApp from '../ink/hooks/use-app.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
 import { apiClient } from '../client.js'
 import { loadConfig } from '../config.js'
+import {
+  handleHelp,
+  handleModel,
+  handleProvider,
+  handleMcp,
+  handleSkills,
+  handleConfigCmd,
+} from '../commands/index.js'
 import type { Message, Config } from '../types.js'
 
 const ASCII_ART_FULL = `            _       _                 _                          _
@@ -101,7 +109,14 @@ export function REPL(): React.ReactElement {
       if (!trimmed) return
 
       if (trimmed.startsWith('/')) {
-        const cmd = trimmed.slice(1).split(' ')[0]
+        const parts = trimmed.slice(1).split(/\s+/)
+        const cmd = parts[0]
+        const args = parts.slice(1)
+
+        const pushSystem = (content: string) => {
+          setDisplayMessages((prev) => [...prev, { role: 'system', content }])
+        }
+
         switch (cmd) {
           case 'exit':
           case 'quit':
@@ -112,16 +127,36 @@ export function REPL(): React.ReactElement {
             setDisplayMessages([])
             return
           case 'help':
-            setDisplayMessages((prev) => [
-              ...prev,
-              { role: 'system', content: 'Commands: /help, /clear, /exit' },
-            ])
+            pushSystem(handleHelp())
+            return
+          case 'model': {
+            const result = await handleModel(args)
+            pushSystem(result)
+            if (args.length > 0 && !result.startsWith('Model not')) {
+              apiClient.setModel(args[0])
+              setConfig((c) => (c ? { ...c, active_model: args[0] } : c))
+            }
+            return
+          }
+          case 'provider': {
+            const result = await handleProvider(args)
+            pushSystem(result)
+            if (args.length > 0 && !result.startsWith('Provider not')) {
+              setConfig((c) => (c ? { ...c, active_provider: args[0] } : c))
+            }
+            return
+          }
+          case 'mcp':
+            pushSystem(await handleMcp(args))
+            return
+          case 'skills':
+            pushSystem(await handleSkills())
+            return
+          case 'config':
+            pushSystem(await handleConfigCmd(args))
             return
           default:
-            setDisplayMessages((prev) => [
-              ...prev,
-              { role: 'system', content: `Unknown command: /${cmd}. Type /help.` },
-            ])
+            pushSystem(`Unknown command: /${cmd}. Type /help.`)
             return
         }
       }
