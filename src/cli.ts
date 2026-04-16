@@ -7,6 +7,7 @@ import type { Message, Config } from './types.js';
 // ANSI colors
 const RESET = '\x1b[0m';
 const LIGHT_BLUE = '\x1b[36;1m';
+const CYAN = '\x1b[36m';
 
 const HELP = `minimal-agent - CLI coding agent
 
@@ -25,17 +26,9 @@ let messages: Message[] = [];
 let running = true;
 let config: Config | null = null;
 
-function printSeparator(): void {
-  console.log('\n' + SEPARATOR);
-}
-
-function printPrompt(): void {
-  process.stdout.write('\n' + LIGHT_BLUE + '> ' + RESET);
-}
-
 function getStatusLine(): string {
   if (!config) return '';
-  return ` model: ${config.active_model} | provider: ${config.active_provider}`;
+  return CYAN + config.active_model + RESET + ' | ' + config.active_provider;
 }
 
 async function buildContext(userMessage: string): Promise<string> {
@@ -97,11 +90,14 @@ async function runLoop(): Promise<void> {
   console.log(`Tools: ${tools.map(t => t.name).join(', ')}`);
   console.log('');
 
-  // Initial separator before first prompt
+  // Print initial separator and status (shown at bottom)
+  console.log(SEPARATOR);
+  console.log(getStatusLine());
   console.log(SEPARATOR);
 
   while (running) {
-    printPrompt();
+    // Print prompt with separator above it
+    console.log(LIGHT_BLUE + '> ' + RESET);
     const input = await readline('');
     if (!input.trim()) continue;
 
@@ -110,9 +106,13 @@ async function runLoop(): Promise<void> {
       const handled = await handleSlashCommand(input);
       if (handled) {
         console.log(SEPARATOR);
+        console.log(getStatusLine());
+        console.log(SEPARATOR);
         continue;
       }
       console.log('Unknown command. Type /help for available commands.');
+      console.log(SEPARATOR);
+      console.log(getStatusLine());
       console.log(SEPARATOR);
       continue;
     }
@@ -129,18 +129,20 @@ async function runLoop(): Promise<void> {
         console.log('\nTool results:', response.toolResults);
       }
 
-      // Print response with separator above it
+      // Print response
       console.log('\n' + response.message.content);
       messages.push(response.message);
 
-      // Print separator after response, then status line
+      // Print separator and status at bottom
       console.log(SEPARATOR);
       console.log(getStatusLine());
+      console.log(SEPARATOR);
     } catch (err) {
       console.error('\nError:', err);
-      messages.pop(); // Remove failed user message
+      messages.pop();
       console.log(SEPARATOR);
       console.log(getStatusLine());
+      console.log(SEPARATOR);
     }
   }
 }
