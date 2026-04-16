@@ -64,7 +64,24 @@ type DisplayMessage = {
   content: string
 }
 
-async function buildContext(userMessage: string): Promise<string> {
+async function buildEnvContext(): Promise<string> {
+  const { homedir, userInfo, platform, release } = await import('os')
+  let user = ''
+  try {
+    user = userInfo().username
+  } catch {}
+  return [
+    '# Environment',
+    `- User: ${user || 'unknown'}`,
+    `- Home directory: ${homedir()}`,
+    `- Working directory: ${process.cwd()}`,
+    `- Platform: ${platform()} ${release()}`,
+    '',
+    'Use these absolute paths instead of guessing "~" expansion or paths like /root.',
+  ].join('\n')
+}
+
+async function buildSystemPreamble(): Promise<string> {
   try {
     const { readFile } = await import('fs/promises')
     const { homedir } = await import('os')
@@ -80,14 +97,12 @@ async function buildContext(userMessage: string): Promise<string> {
       agentsMd = await readFile(`${homedir()}/AGENTS.md`, 'utf-8')
     } catch {}
 
-    const parts: string[] = []
+    const parts: string[] = [await buildEnvContext()]
     if (claudeMd) parts.push(`# CLAUDE.md\n${claudeMd}`)
     if (agentsMd) parts.push(`# AGENTS.md\n${agentsMd}`)
-    parts.push(userMessage)
-
-    return parts.filter(Boolean).join('\n\n---\n\n')
+    return parts.join('\n\n---\n\n')
   } catch {
-    return userMessage
+    return ''
   }
 }
 
@@ -111,6 +126,12 @@ export function REPL(): React.ReactElement {
         await apiClient.init()
         const cfg = await loadConfig()
         setConfig(cfg)
+
+        const preamble = await buildSystemPreamble()
+        if (preamble) {
+          setMessages([{ role: 'system', content: preamble }])
+        }
+
         setInitialized(true)
       } catch (err: any) {
         setDisplayMessages((prev) => [
@@ -129,10 +150,9 @@ export function REPL(): React.ReactElement {
       setIsLoading(true)
 
       try {
-        const contextMessage = await buildContext(promptBody)
         const newMessages: Message[] = [
           ...messages,
-          { role: 'user', content: contextMessage },
+          { role: 'user', content: promptBody },
         ]
 
         const result = await apiClient.chatWithTools(newMessages, {
@@ -195,7 +215,7 @@ export function REPL(): React.ReactElement {
             exit()
             return
           case 'clear':
-            setMessages([])
+            setMessages((prev) => prev.filter((m) => m.role === 'system'))
             setDisplayMessages([])
             return
           case 'help':
@@ -231,10 +251,18 @@ export function REPL(): React.ReactElement {
             const skillContent = await loadSkillContent(cmd)
             if (skillContent) {
               pushSystem(`Invoking skill: ${cmd}${args.length ? ` ${args.join(' ')}` : ''}`)
-              const skillInvocation = args.length
-                ? `${skillContent}\n\n---\n\nArguments: ${args.join(' ')}`
-                : skillContent
-              await sendToLLM(skillInvocation, `/${cmd}${args.length ? ' ' + args.join(' ') : ''}`)
+              const fullInvocation = `/${cmd}${args.length ? ' ' + args.join(' ') : ''}`
+              const header = args.length
+                ? `The user invoked the "${cmd}" skill with arguments: ${args.join(' ')}\n` +
+                  `Full invocation: ${fullInvocation}\n\n` +
+                  `Follow the skill's instructions below. Treat the arguments as scope — ` +
+                  `do not broaden the work beyond what the arguments specify. If the skill ` +
+                  `is about operating on a specific item (e.g. "Task N"), work on that one ` +
+                  `item only; do not read or modify unrelated items.`
+                : `The user invoked the "${cmd}" skill with no arguments.\n\n` +
+                  `Follow the skill's instructions below.`
+              const skillInvocation = `${header}\n\n---\n\n${skillContent}`
+              await sendToLLM(skillInvocation, fullInvocation)
               return
             }
             pushSystem(`Unknown command: /${cmd}. Type /help or /skills to see options.`)
