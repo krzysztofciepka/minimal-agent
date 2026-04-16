@@ -1,0 +1,21 @@
+{
+  "name": "minimal-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lightweight CLI coding agent with OpenAI-compatible API",
+  "main": "src/cli.ts",
+  "scripts": {
+    "start": "bun run src/cli.ts",
+    "dev": "bun run src/cli.ts",
+    "build": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.0.0",
+    "typescript": "^5.3.0"
+  }
+}
