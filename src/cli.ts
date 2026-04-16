@@ -15,23 +15,23 @@ Commands:
 
 Type your request and press Enter to start.`;
 
-const SEPARATOR = '─'.repeat(60);
+const SEPARATOR = '─'.repeat(process.stdout.columns || 60);
 
 let messages: Message[] = [];
 let running = true;
 let config: Config | null = null;
 
-function printStatusBar(): void {
-  if (!config) return;
-  const model = config.active_model;
-  const provider = config.active_provider;
-  console.log(`\n${SEPARATOR}`);
-  console.log(` model: ${model} | provider: ${provider}`);
-  console.log(SEPARATOR);
+function printSeparator(): void {
+  console.log('\n' + SEPARATOR);
 }
 
 function printPrompt(): void {
   process.stdout.write('\n> ');
+}
+
+function getStatusLine(): string {
+  if (!config) return '';
+  return ` model: ${config.active_model} | provider: ${config.active_provider}`;
 }
 
 async function buildContext(userMessage: string): Promise<string> {
@@ -93,7 +93,8 @@ async function runLoop(): Promise<void> {
   console.log(`Tools: ${tools.map(t => t.name).join(', ')}`);
   console.log('');
 
-  printStatusBar();
+  // Initial separator before first prompt
+  console.log(SEPARATOR);
 
   while (running) {
     printPrompt();
@@ -104,11 +105,11 @@ async function runLoop(): Promise<void> {
     if (input.startsWith('/')) {
       const handled = await handleSlashCommand(input);
       if (handled) {
-        printStatusBar();
+        console.log(SEPARATOR);
         continue;
       }
       console.log('Unknown command. Type /help for available commands.');
-      printStatusBar();
+      console.log(SEPARATOR);
       continue;
     }
 
@@ -121,17 +122,21 @@ async function runLoop(): Promise<void> {
       const response = await apiClient.chatWithTools(messages);
 
       if (response.toolResults.length > 0) {
-        // Handle tool execution here (placeholder for now)
         console.log('\nTool results:', response.toolResults);
       }
 
+      // Print response with separator above it
       console.log('\n' + response.message.content);
       messages.push(response.message);
-      printStatusBar();
+
+      // Print separator after response, then status line
+      console.log(SEPARATOR);
+      console.log(getStatusLine());
     } catch (err) {
       console.error('\nError:', err);
       messages.pop(); // Remove failed user message
-      printStatusBar();
+      console.log(SEPARATOR);
+      console.log(getStatusLine());
     }
   }
 }
