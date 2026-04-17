@@ -14,8 +14,10 @@ import Text from '../ink/components/Text.js'
 import useInput from '../ink/hooks/use-input.js'
 import useApp from '../ink/hooks/use-app.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
+import { Ansi } from '../ink/Ansi.js'
 import { apiClient } from '../client.js'
 import { loadConfig } from '../config.js'
+import { renderMarkdown } from '../utils/markdown.js'
 import {
   handleHelp,
   handleModel,
@@ -394,7 +396,7 @@ export function REPL(): React.ReactElement {
             )}
             {msg.role === 'assistant' && (
               <Box flexDirection="column" marginLeft={2}>
-                <Text color="ansi:white">{msg.content}</Text>
+                <Ansi>{renderMarkdown(msg.content)}</Ansi>
               </Box>
             )}
             {msg.role === 'system' && (
