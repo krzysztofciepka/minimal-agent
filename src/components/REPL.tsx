@@ -40,24 +40,22 @@ async function loadSkillContent(name: string): Promise<string | null> {
   }
 }
 
-const ASCII_ART_FULL = `            _       _                 _                          _
-  _ __ ___ (_)_ __ (_)_ __ ___   __ _| |   __ _  __ _  ___ _ __ | |_
- | '_ \` _ \\| | '_ \\| | '_ \` _ \\ / _\` | |  / _\` |/ _\` |/ _ \\ '_ \\| __|
- | | | | | | | | | | | | | | | | (_| | | | (_| | (_| |  __/ | | | |_
- |_| |_| |_|_|_| |_|_|_| |_| |_|\\__,_|_|  \\__,_|\\__, |\\___|_| |_|\\__|
-                                                |___/`
+const ASCII_ART_FULL = `  _  __     _        ____          _
+ | |/ /_ __(_)___   / ___|___   __| | ___
+ | ' /| '__| / __| | |   / _ \\ / _\` |/ _ \\
+ | . \\| |  | \\__ \\ | |__| (_) | (_| |  __/
+ |_|\\_\\_|  |_|___/  \\____\\___/ \\__,_|\\___|`
 
-const ASCII_ART_COMPACT = `            _       _                 _
-  _ __ ___ (_)_ __ (_)_ __ ___   __ _| |
- | '_ \` _ \\| | '_ \\| | '_ \` _ \\ / _\` | |
- | | | | | | | | | | | | | | | | (_| | |
- |_| |_| |_|_|_| |_|_|_| |_| |_|\\__,_|_|
-                    agent`
+const ASCII_ART_COMPACT = `  _  __     _
+ | |/ /_ __(_)___
+ | ' /| '__| / __|
+ | . \\| |  | \\__ \\
+ |_|\\_\\_|  |_|___/  Code`
 
-const ASCII_ART_TINY = 'minimal-agent'
+const ASCII_ART_TINY = 'Kris Code'
 
-const FULL_BANNER_WIDTH = 72
-const COMPACT_BANNER_WIDTH = 42
+const FULL_BANNER_WIDTH = 42
+const COMPACT_BANNER_WIDTH = 24
 
 type DisplayMessage = {
   role: 'user' | 'assistant' | 'system'
