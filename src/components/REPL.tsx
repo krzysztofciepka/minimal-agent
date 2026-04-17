@@ -17,7 +17,7 @@ import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
 import { Ansi } from '../ink/Ansi.js'
 import { apiClient } from '../client.js'
 import { loadConfig } from '../config.js'
-import { renderMarkdown } from '../utils/markdown.js'
+import { renderMarkdown, renderDiff } from '../utils/markdown.js'
 import {
   handleHelp,
   handleModel,
@@ -60,7 +60,7 @@ const FULL_BANNER_WIDTH = 42
 const COMPACT_BANNER_WIDTH = 24
 
 type DisplayMessage = {
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant' | 'system' | 'diff'
   content: string
 }
 
@@ -159,13 +159,19 @@ export function REPL(): React.ReactElement {
           onToolCall: (exec) => {
             const preview =
               exec.args.length > 120 ? exec.args.slice(0, 117) + '...' : exec.args
-            setDisplayMessages((prev) => [
-              ...prev,
-              {
-                role: 'system',
-                content: `⚙  ${exec.name}(${preview})${exec.result.isError ? ' — error' : ''}`,
-              },
-            ])
+            setDisplayMessages((prev) => {
+              const next: DisplayMessage[] = [
+                ...prev,
+                {
+                  role: 'system',
+                  content: `⚙  ${exec.name}(${preview})${exec.result.isError ? ' — error' : ''}`,
+                },
+              ]
+              if (exec.result.diff) {
+                next.push({ role: 'diff', content: exec.result.diff })
+              }
+              return next
+            })
           },
         })
 
@@ -404,6 +410,11 @@ export function REPL(): React.ReactElement {
                 <Text color="ansi:yellow" dim>
                   {msg.content}
                 </Text>
+              </Box>
+            )}
+            {msg.role === 'diff' && (
+              <Box flexDirection="column" marginLeft={2}>
+                <Ansi>{renderDiff(msg.content)}</Ansi>
               </Box>
             )}
           </Box>

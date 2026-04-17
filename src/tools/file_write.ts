@@ -1,10 +1,11 @@
 // File write tool
-import { writeFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 import { mkdir } from 'fs/promises';
 import { dirname } from 'path';
 import { z } from 'zod';
 import type { Tool, ToolResult } from '../types.js';
 import { expandPath } from './paths.js';
+import { makeUnifiedDiff } from './diff_helper.js';
 
 const paramsSchema = z.object({
   file_path: z.string().describe('Path to write to'),
@@ -20,11 +21,24 @@ export const fileWriteTool: Tool = {
 
     try {
       const resolved = expandPath(file_path);
+
+      let oldContent = '';
+      try {
+        oldContent = await readFile(resolved, 'utf-8');
+      } catch {
+        // File didn't exist — treat as create (empty → new content diff)
+      }
+
       const dir = dirname(resolved);
       await mkdir(dir, { recursive: true });
-
       await writeFile(resolved, content);
-      return { content: `File written: ${resolved}` };
+
+      const diff = makeUnifiedDiff(resolved, oldContent, content);
+      const verb = oldContent ? 'overwrote' : 'created';
+      return {
+        content: `File ${verb}: ${resolved}${diff ? '\n\n```diff\n' + diff + '\n```' : ''}`,
+        diff,
+      };
     } catch (error) {
       return {
         content: `Error writing file: ${error}`,

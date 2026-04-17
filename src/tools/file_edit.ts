@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'fs/promises';
 import { z } from 'zod';
 import type { Tool, ToolResult } from '../types.js';
 import { expandPath } from './paths.js';
+import { makeUnifiedDiff } from './diff_helper.js';
 
 const paramsSchema = z.object({
   file_path: z.string().describe('Path to the file to edit'),
@@ -31,7 +32,11 @@ export const fileEditTool: Tool = {
       const newContent = content.replace(old_string, new_string);
       await writeFile(resolved, newContent);
 
-      return { content: `File edited: ${resolved}` };
+      const diff = makeUnifiedDiff(resolved, content, newContent);
+      return {
+        content: `File edited: ${resolved}${diff ? '\n\n```diff\n' + diff + '\n```' : ''}`,
+        diff,
+      };
     } catch (error) {
       return {
         content: `Error editing file: ${error}`,

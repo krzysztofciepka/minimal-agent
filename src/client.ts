@@ -24,10 +24,15 @@ export interface ChatResult {
 }
 
 function toolResultToString(result: ToolResult): string {
-  if (typeof result.content === 'string') return result.content;
-  return result.content
-    .map((part) => (part.type === 'text' ? part.text : JSON.stringify(part)))
-    .join('\n');
+  const base =
+    typeof result.content === 'string'
+      ? result.content
+      : result.content
+          .map((part) => (part.type === 'text' ? part.text : JSON.stringify(part)))
+          .join('\n');
+  // The content already embeds a ```diff block when a tool produced one,
+  // so we don't re-append result.diff here.
+  return base;
 }
 
 function extractToolCalls(message: Message): ToolCall[] {

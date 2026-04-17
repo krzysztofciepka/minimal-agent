@@ -99,7 +99,7 @@ function parseDiff(text: string): DiffLine[] {
   return out
 }
 
-function renderDiff(text: string): string {
+export function renderDiff(text: string): string {
   const lines = parseDiff(text)
   if (lines.length === 0) return text
 

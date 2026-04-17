@@ -3,6 +3,12 @@
 export interface ToolResult {
   content: string | Array<{ type: string; text: string }>;
   isError?: boolean;
+  /**
+   * Optional unified-diff patch to display in the UI when the tool
+   * modified files. Shown by the REPL as a rendered diff block, and
+   * appended to the text the model sees so it has the full change context.
+   */
+  diff?: string;
 }
 
 export interface Tool {
