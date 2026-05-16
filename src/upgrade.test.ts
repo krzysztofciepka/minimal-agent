@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { assetNameForPlatform, pickAsset, type Release } from './upgrade.js';
+import { assetNameForPlatform, pickAsset, fetchLatestRelease, type Release } from './upgrade.js';
 
 describe('assetNameForPlatform', () => {
   it('maps linux x64', () => {
@@ -30,8 +30,6 @@ describe('pickAsset', () => {
     );
   });
 });
-
-import { fetchLatestRelease } from './upgrade.js';
 
 function stubFetch(status: number, body: string): typeof fetch {
   return (async () => new Response(body, { status })) as unknown as typeof fetch;
