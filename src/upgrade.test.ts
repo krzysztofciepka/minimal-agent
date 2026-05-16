@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { assetNameForPlatform, pickAsset, fetchLatestRelease, downloadAsset, installBinary, type Release } from './upgrade.js';
+import { assetNameForPlatform, pickAsset, fetchLatestRelease, downloadAsset, installBinary, runUpgrade, type Release } from './upgrade.js';
 import { createHash } from 'crypto';
 import { readFile, mkdtemp, rm, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -144,5 +144,34 @@ describe('installBinary', () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('runUpgrade', () => {
+  it('reports up-to-date and performs no download when on the latest tag', async () => {
+    let fetchCalls = 0;
+    const fetchImpl = (async (url: string) => {
+      fetchCalls += 1;
+      if (String(url).endsWith('/releases/latest')) {
+        return new Response(
+          JSON.stringify({ tag_name: 'v0.1.2', assets: [] }),
+          { status: 200 },
+        );
+      }
+      throw new Error('unexpected download call');
+    }) as unknown as typeof fetch;
+
+    const lines: string[] = [];
+    const out = { write: (s: string) => (lines.push(s), true) } as unknown as NodeJS.WritableStream;
+
+    await runUpgrade(out, {
+      currentVersion: 'v0.1.2',
+      apiBaseUrl: 'https://api.test',
+      exePath: process.execPath,
+      fetchImpl,
+    });
+
+    expect(lines.join('')).toContain('minimal-agent is up to date (v0.1.2).');
+    expect(fetchCalls).toBe(1);
   });
 });

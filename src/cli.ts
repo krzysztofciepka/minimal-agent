@@ -6,6 +6,7 @@ import { getTools } from './tools/index.js';
 import type { Message, Config } from './types.js';
 import { startTUI } from './tui.js';
 import { VERSION } from './version.js';
+import { runUpgrade } from './upgrade.js';
 
 // ANSI colors
 const RESET = '\x1b[0m';
@@ -14,7 +15,7 @@ const CYAN = '\x1b[36m';
 
 const HELP = `minimal-agent - CLI coding agent
 
-Usage: minimal-agent [--no-tui]
+Usage: minimal-agent [--no-tui] [--version] [--upgrade]
 
 The TUI is launched by default. Pass --no-tui (alias: --repl) for this
 plain REPL.
@@ -196,6 +197,13 @@ if (import.meta.main) {
   if (process.argv.includes('--version')) {
     console.log(`minimal-agent ${VERSION}`);
     process.exit(0);
+  } else if (process.argv.includes('--upgrade')) {
+    runUpgrade(process.stderr, { currentVersion: VERSION })
+      .then(() => process.exit(0))
+      .catch((err: any) => {
+        console.error(String(err?.message ?? err));
+        process.exit(1);
+      });
   } else if (isTUI) {
     startTUI().catch(console.error);
   } else {

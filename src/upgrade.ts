@@ -148,3 +148,88 @@ export async function installBinary(
   }
   await unlink(backup).catch(() => {});
 }
+
+export function humanSize(n: number): string {
+  const kb = 1024;
+  const mb = 1024 * 1024;
+  if (n >= mb) return `${(n / mb).toFixed(1)} MB`;
+  if (n >= kb) return `${(n / kb).toFixed(1)} KB`;
+  return `${n} B`;
+}
+
+export interface RunUpgradeOptions {
+  currentVersion: string;
+  apiBaseUrl?: string;
+  exePath?: string;
+  fetchImpl?: FetchImpl;
+}
+
+export async function runUpgrade(
+  out: NodeJS.WritableStream,
+  opts: RunUpgradeOptions,
+): Promise<void> {
+  const apiBaseUrl = opts.apiBaseUrl ?? 'https://api.github.com';
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  const currentVersion = opts.currentVersion;
+
+  let target: string;
+  try {
+    target = realpathSync(opts.exePath ?? process.execPath);
+  } catch (err: any) {
+    throw new Error(
+      `cannot determine minimal-agent binary path: ${err?.message ?? err}`,
+    );
+  }
+  const dir = dirname(target);
+
+  const release = await fetchLatestRelease(apiBaseUrl, currentVersion, fetchImpl);
+
+  if (currentVersion !== 'dev' && release.tag_name === currentVersion) {
+    out.write(`minimal-agent is up to date (${currentVersion}).\n`);
+    return;
+  }
+
+  const assetName = assetNameForPlatform(process.platform, process.arch);
+  const asset = pickAsset(release, assetName);
+
+  out.write(`Current version: ${currentVersion}\n`);
+  out.write(`Latest version:  ${release.tag_name}\n`);
+  out.write(`Downloading ${asset.name} (${humanSize(asset.size)})...\n`);
+
+  const tmpPath = join(dir, `.minimal-agent-upgrade-${process.pid}`);
+  try {
+    await downloadAsset(
+      asset.browser_download_url,
+      tmpPath,
+      asset.digest,
+      currentVersion,
+      fetchImpl,
+    );
+  } catch (err: any) {
+    const msg = String(err?.message ?? err);
+    if (
+      msg.includes('EACCES') ||
+      msg.includes('permission denied') ||
+      msg.includes('EROFS')
+    ) {
+      throw new Error(
+        `cannot write to ${dir}: ${msg} — re-run with sudo or move minimal-agent to a user-owned path`,
+      );
+    }
+    throw err;
+  }
+  out.write('Verifying checksum... ok\n');
+
+  out.write(`Installing to ${target}... `);
+  try {
+    await installBinary(tmpPath, target);
+  } catch (err) {
+    out.write('failed\n');
+    await unlink(tmpPath).catch(() => {});
+    throw err;
+  }
+  out.write('ok\n');
+  out.write(
+    `Upgraded ${currentVersion} → ${release.tag_name}. Restart minimal-agent to use the new version.\n`,
+  );
+}
