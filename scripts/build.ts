@@ -10,7 +10,7 @@
  *   bun run scripts/build.ts linux-x64     # builds a specific target
  */
 
-import { mkdir, rm } from 'fs/promises'
+import { mkdir, rm, readFile, writeFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import { $ } from 'bun'
 
@@ -112,13 +112,30 @@ async function main() {
   console.log(`Building ${targets.length} target(s) into ./${outDir}/`)
   const start = Date.now()
 
-  for (const target of targets) {
-    try {
-      await build(target, outDir)
-    } catch (err: any) {
-      console.error(`    ✗ ${target.name} failed: ${err?.message ?? err}`)
-      process.exitCode = 1
+  const VERSION_FILE = 'src/version.ts'
+  const tag = process.env.MINIMAL_AGENT_VERSION
+  const originalVersionFile = await readFile(VERSION_FILE, 'utf-8')
+  if (tag) {
+    await writeFile(
+      VERSION_FILE,
+      `// Overwritten with the release tag by scripts/build.ts at release build time.\n` +
+        `// Stays 'dev' for local \`bun run\` / \`bun run build\` without MINIMAL_AGENT_VERSION.\n` +
+        `export const VERSION = '${tag}';\n`,
+    )
+    console.log(`  embedding version ${tag}`)
+  }
+
+  try {
+    for (const target of targets) {
+      try {
+        await build(target, outDir)
+      } catch (err: any) {
+        console.error(`    ✗ ${target.name} failed: ${err?.message ?? err}`)
+        process.exitCode = 1
+      }
     }
+  } finally {
+    await writeFile(VERSION_FILE, originalVersionFile)
   }
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(1)

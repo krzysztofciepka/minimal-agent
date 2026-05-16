@@ -5,6 +5,7 @@ import { loadConfig } from './config.js';
 import { getTools } from './tools/index.js';
 import type { Message, Config } from './types.js';
 import { startTUI } from './tui.js';
+import { VERSION } from './version.js';
 
 // ANSI colors
 const RESET = '\x1b[0m';
@@ -192,7 +193,10 @@ const wantsPlainRepl =
 const isTUI = !wantsPlainRepl;
 
 if (import.meta.main) {
-  if (isTUI) {
+  if (process.argv.includes('--version')) {
+    console.log(`minimal-agent ${VERSION}`);
+    process.exit(0);
+  } else if (isTUI) {
     startTUI().catch(console.error);
   } else {
     runLoop().catch(console.error);
