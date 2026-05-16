@@ -24,13 +24,13 @@ export type FetchImpl = typeof fetch;
 
 export function assetNameForPlatform(platform: string, arch: string): string {
   const os = platform === 'win32' ? 'windows' : platform;
-  const a = arch === 'arm64' ? 'arm64' : 'x64';
+  const normalizedArch = arch === 'arm64' ? 'arm64' : 'x64';
   const ext = os === 'windows' ? '.exe' : '';
-  return `minimal-agent-${os}-${a}${ext}`;
+  return `minimal-agent-${os}-${normalizedArch}${ext}`;
 }
 
 export function pickAsset(release: Release, assetName: string): Asset {
-  const found = release.assets.find((x) => x.name === assetName);
+  const found = release.assets.find((asset) => asset.name === assetName);
   if (!found) {
     throw new Error(
       `no asset matching ${assetName} in release ${release.tag_name}`,
