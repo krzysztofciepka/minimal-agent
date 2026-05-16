@@ -81,6 +81,7 @@ export async function downloadAsset(
   fetchImpl: FetchImpl = fetch,
 ): Promise<void> {
   let handle: Awaited<ReturnType<typeof open>> | undefined;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
     const resp = await fetchImpl(url, {
       headers: { 'User-Agent': UA_PREFIX + version },
@@ -94,7 +95,7 @@ export async function downloadAsset(
     }
     const hash = createHash('sha256');
     handle = await open(dstPath, 'w', 0o755);
-    const reader = resp.body.getReader();
+    reader = resp.body.getReader();
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -111,6 +112,7 @@ export async function downloadAsset(
     }
     await chmod(dstPath, 0o755);
   } catch (err) {
+    if (reader) await reader.cancel().catch(() => {});
     if (handle) await handle.close().catch(() => {});
     await unlink(dstPath).catch(() => {});
     throw err;
