@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { assetNameForPlatform, pickAsset, fetchLatestRelease, downloadAsset, type Release } from './upgrade.js';
+import { assetNameForPlatform, pickAsset, fetchLatestRelease, downloadAsset, installBinary, type Release } from './upgrade.js';
 import { createHash } from 'crypto';
-import { readFile, mkdtemp, rm } from 'fs/promises';
+import { readFile, mkdtemp, rm, writeFile, stat } from 'fs/promises';
 import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -98,6 +98,47 @@ describe('downloadAsset', () => {
         downloadAsset('http://x/a', dst, 'sha256:deadbeef', 'dev', stubDownload(200, payload)),
       ).rejects.toThrow('checksum mismatch: expected deadbeef, got');
       expect(existsSync(dst)).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('installBinary', () => {
+  it('replaces target with src and leaves no .old behind', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ma-inst-'));
+    try {
+      const src = join(dir, 'src');
+      const target = join(dir, 'target');
+      await writeFile(src, 'NEW');
+      await writeFile(target, 'OLD');
+      await installBinary(src, target);
+      expect(await readFile(target, 'utf-8')).toBe('NEW');
+      expect(existsSync(target + '.old')).toBe(false);
+      expect(existsSync(src)).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rolls back to the original when the second rename fails', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ma-inst-'));
+    try {
+      const src = join(dir, 'src');
+      const target = join(dir, 'target');
+      await writeFile(src, 'NEW');
+      await writeFile(target, 'OLD');
+      let calls = 0;
+      const renameImpl = async (a: string, b: string) => {
+        calls += 1;
+        if (calls === 2) throw new Error('EACCES: simulated');
+        const { rename } = await import('fs/promises');
+        await rename(a, b);
+      };
+      await expect(installBinary(src, target, renameImpl)).rejects.toThrow(
+        'failed to install new binary',
+      );
+      expect(await readFile(target, 'utf-8')).toBe('OLD');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

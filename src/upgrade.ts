@@ -118,3 +118,33 @@ export async function downloadAsset(
     throw err;
   }
 }
+
+export type RenameImpl = (oldPath: string, newPath: string) => Promise<void>;
+
+export async function installBinary(
+  srcPath: string,
+  targetPath: string,
+  renameImpl: RenameImpl = rename,
+): Promise<void> {
+  const backup = targetPath + '.old';
+  try {
+    await renameImpl(targetPath, backup);
+  } catch (err: any) {
+    throw new Error(
+      `cannot move existing binary aside: ${err?.message ?? err}`,
+    );
+  }
+  try {
+    await renameImpl(srcPath, targetPath);
+  } catch (err: any) {
+    try {
+      await renameImpl(backup, targetPath);
+    } catch {
+      throw new Error(
+        `failed to install new binary: ${err?.message ?? err}; original saved at ${backup} — restore manually`,
+      );
+    }
+    throw new Error(`failed to install new binary: ${err?.message ?? err}`);
+  }
+  await unlink(backup).catch(() => {});
+}
