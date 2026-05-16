@@ -13,7 +13,10 @@ const CYAN = '\x1b[36m';
 
 const HELP = `minimal-agent - CLI coding agent
 
-Usage: bun run src/cli.ts
+Usage: minimal-agent [--no-tui]
+
+The TUI is launched by default. Pass --no-tui (alias: --repl) for this
+plain REPL.
 
 Commands:
   /help - Show this message
@@ -182,8 +185,11 @@ async function readline(prompt: string): Promise<string> {
   });
 }
 
-// Check for --tui flag
-const isTUI = process.argv.includes('--tui');
+// The TUI is the default experience. Pass --no-tui (alias: --repl) to use
+// the plain non-TUI REPL. --tui is still accepted for backward compatibility.
+const wantsPlainRepl =
+  process.argv.includes('--no-tui') || process.argv.includes('--repl');
+const isTUI = !wantsPlainRepl;
 
 if (import.meta.main) {
   if (isTUI) {
