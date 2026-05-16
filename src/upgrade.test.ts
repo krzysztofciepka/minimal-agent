@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { assetNameForPlatform, pickAsset, fetchLatestRelease, type Release } from './upgrade.js';
+import { assetNameForPlatform, pickAsset, fetchLatestRelease, downloadAsset, type Release } from './upgrade.js';
+import { createHash } from 'crypto';
+import { readFile, mkdtemp, rm } from 'fs/promises';
+import { existsSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 describe('assetNameForPlatform', () => {
   it('maps linux x64', () => {
@@ -50,5 +55,51 @@ describe('fetchLatestRelease', () => {
     await expect(
       fetchLatestRelease('https://api.test', 'dev', stubFetch(200, 'not json')),
     ).rejects.toThrow('failed to parse release metadata');
+  });
+});
+
+function stubDownload(status: number, payload: Uint8Array): typeof fetch {
+  return (async () => new Response(status === 200 ? payload : 'nope', { status })) as unknown as typeof fetch;
+}
+
+describe('downloadAsset', () => {
+  it('writes the payload and verifies a matching digest', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ma-dl-'));
+    try {
+      const payload = new TextEncoder().encode('hello-binary');
+      const digest = 'sha256:' + createHash('sha256').update(payload).digest('hex');
+      const dst = join(dir, 'out');
+      await downloadAsset('http://x/a', dst, digest, 'dev', stubDownload(200, payload));
+      expect(new Uint8Array(await readFile(dst))).toEqual(payload);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a non-200 and removes the temp file', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ma-dl-'));
+    try {
+      const dst = join(dir, 'out');
+      await expect(
+        downloadAsset('http://x/a', dst, 'sha256:zz', 'dev', stubDownload(404, new Uint8Array())),
+      ).rejects.toThrow('failed to download http://x/a: 404');
+      expect(existsSync(dst)).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a digest mismatch and removes the temp file', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ma-dl-'));
+    try {
+      const payload = new TextEncoder().encode('data');
+      const dst = join(dir, 'out');
+      await expect(
+        downloadAsset('http://x/a', dst, 'sha256:deadbeef', 'dev', stubDownload(200, payload)),
+      ).rejects.toThrow('checksum mismatch: expected deadbeef, got');
+      expect(existsSync(dst)).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

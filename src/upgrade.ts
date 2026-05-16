@@ -72,3 +72,47 @@ export async function fetchLatestRelease(
     );
   }
 }
+
+export async function downloadAsset(
+  url: string,
+  dstPath: string,
+  expectedDigest: string,
+  version: string,
+  fetchImpl: FetchImpl = fetch,
+): Promise<void> {
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    const resp = await fetchImpl(url, {
+      headers: { 'User-Agent': UA_PREFIX + version },
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!resp.ok) {
+      throw new Error(`failed to download ${url}: ${resp.status}`);
+    }
+    if (!resp.body) {
+      throw new Error(`download interrupted: empty response body`);
+    }
+    const hash = createHash('sha256');
+    handle = await open(dstPath, 'w', 0o755);
+    const reader = resp.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      hash.update(value);
+      await handle.write(value);
+    }
+    await handle.close();
+    handle = undefined;
+
+    const got = hash.digest('hex');
+    const want = expectedDigest.replace(/^sha256:/, '');
+    if (got !== want) {
+      throw new Error(`checksum mismatch: expected ${want}, got ${got}`);
+    }
+    await chmod(dstPath, 0o755);
+  } catch (err) {
+    if (handle) await handle.close().catch(() => {});
+    await unlink(dstPath).catch(() => {});
+    throw err;
+  }
+}
