@@ -30,3 +30,27 @@ describe('pickAsset', () => {
     );
   });
 });
+
+import { fetchLatestRelease } from './upgrade.js';
+
+function stubFetch(status: number, body: string): typeof fetch {
+  return (async () => new Response(body, { status })) as unknown as typeof fetch;
+}
+
+describe('fetchLatestRelease', () => {
+  it('parses a successful response', async () => {
+    const json = JSON.stringify({ tag_name: 'v1.2.3', assets: [] });
+    const rel = await fetchLatestRelease('https://api.test', 'dev', stubFetch(200, json));
+    expect(rel.tag_name).toBe('v1.2.3');
+  });
+  it('errors on non-200 with status and snippet', async () => {
+    await expect(
+      fetchLatestRelease('https://api.test', 'dev', stubFetch(403, 'rate limited')),
+    ).rejects.toThrow('failed to fetch latest release: 403: rate limited');
+  });
+  it('errors on malformed JSON', async () => {
+    await expect(
+      fetchLatestRelease('https://api.test', 'dev', stubFetch(200, 'not json')),
+    ).rejects.toThrow('failed to parse release metadata');
+  });
+});

@@ -38,3 +38,37 @@ export function pickAsset(release: Release, assetName: string): Asset {
   }
   return found;
 }
+
+const UA_PREFIX = 'minimal-agent-upgrader/';
+
+function snippet(s: string): string {
+  return s.length > 200 ? s.slice(0, 200) + '...' : s;
+}
+
+export async function fetchLatestRelease(
+  apiBaseUrl: string,
+  version: string,
+  fetchImpl: FetchImpl = fetch,
+): Promise<Release> {
+  const url = `${apiBaseUrl}/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
+  const resp = await fetchImpl(url, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': UA_PREFIX + version,
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+  const body = await resp.text();
+  if (!resp.ok) {
+    throw new Error(
+      `failed to fetch latest release: ${resp.status}: ${snippet(body)}`,
+    );
+  }
+  try {
+    return JSON.parse(body) as Release;
+  } catch (err: any) {
+    throw new Error(
+      `failed to parse release metadata: ${err?.message ?? err}`,
+    );
+  }
+}
