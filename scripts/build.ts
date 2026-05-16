@@ -114,13 +114,13 @@ async function main() {
 
   const VERSION_FILE = 'src/version.ts'
   const tag = process.env.MINIMAL_AGENT_VERSION
-  const originalVersionFile = await readFile(VERSION_FILE, 'utf-8')
+  const originalVersionFile = tag ? await readFile(VERSION_FILE, 'utf-8') : null
   if (tag) {
     await writeFile(
       VERSION_FILE,
       `// Overwritten with the release tag by scripts/build.ts at release build time.\n` +
         `// Stays 'dev' for local \`bun run\` / \`bun run build\` without MINIMAL_AGENT_VERSION.\n` +
-        `export const VERSION = '${tag}';\n`,
+        `export const VERSION = ${JSON.stringify(tag)};\n`,
     )
     console.log(`  embedding version ${tag}`)
   }
@@ -135,7 +135,9 @@ async function main() {
       }
     }
   } finally {
-    await writeFile(VERSION_FILE, originalVersionFile)
+    if (originalVersionFile !== null) {
+      await writeFile(VERSION_FILE, originalVersionFile)
+    }
   }
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(1)
