@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { assetNameForPlatform, pickAsset, fetchLatestRelease, downloadAsset, installBinary, type Release } from './upgrade.js';
 import { createHash } from 'crypto';
-import { readFile, mkdtemp, rm, writeFile, stat } from 'fs/promises';
+import { readFile, mkdtemp, rm, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -139,6 +139,8 @@ describe('installBinary', () => {
         'failed to install new binary',
       );
       expect(await readFile(target, 'utf-8')).toBe('OLD');
+      expect(existsSync(src)).toBe(true);
+      expect(existsSync(target + '.old')).toBe(false);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
