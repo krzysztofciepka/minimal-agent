@@ -45,6 +45,20 @@ function snippet(s: string): string {
   return s.length > 200 ? s.slice(0, 200) + '...' : s;
 }
 
+function mapPermissionError(err: unknown, dir: string): Error {
+  const msg = String((err as any)?.message ?? err);
+  if (
+    msg.includes('EACCES') ||
+    msg.includes('permission denied') ||
+    msg.includes('EROFS')
+  ) {
+    return new Error(
+      `cannot write to ${dir}: ${msg} — re-run with sudo or move minimal-agent to a user-owned path`,
+    );
+  }
+  return err instanceof Error ? err : new Error(msg);
+}
+
 export async function fetchLatestRelease(
   apiBaseUrl: string,
   version: string,
@@ -205,18 +219,8 @@ export async function runUpgrade(
       currentVersion,
       fetchImpl,
     );
-  } catch (err: any) {
-    const msg = String(err?.message ?? err);
-    if (
-      msg.includes('EACCES') ||
-      msg.includes('permission denied') ||
-      msg.includes('EROFS')
-    ) {
-      throw new Error(
-        `cannot write to ${dir}: ${msg} — re-run with sudo or move minimal-agent to a user-owned path`,
-      );
-    }
-    throw err;
+  } catch (err) {
+    throw mapPermissionError(err, dir);
   }
   out.write('Verifying checksum... ok\n');
 
@@ -226,7 +230,7 @@ export async function runUpgrade(
   } catch (err) {
     out.write('failed\n');
     await unlink(tmpPath).catch(() => {});
-    throw err;
+    throw mapPermissionError(err, dir);
   }
   out.write('ok\n');
   out.write(

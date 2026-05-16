@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { assetNameForPlatform, pickAsset, fetchLatestRelease, downloadAsset, installBinary, runUpgrade, type Release } from './upgrade.js';
+import { assetNameForPlatform, pickAsset, fetchLatestRelease, downloadAsset, installBinary, runUpgrade, humanSize, type Release } from './upgrade.js';
 import { createHash } from 'crypto';
 import { readFile, mkdtemp, rm, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -173,5 +173,15 @@ describe('runUpgrade', () => {
 
     expect(lines.join('')).toContain('minimal-agent is up to date (v0.1.2).');
     expect(fetchCalls).toBe(1);
+  });
+});
+
+describe('humanSize', () => {
+  it('formats bytes, KB and MB', () => {
+    expect(humanSize(0)).toBe('0 B');
+    expect(humanSize(1023)).toBe('1023 B');
+    expect(humanSize(1024)).toBe('1.0 KB');
+    expect(humanSize(1048576)).toBe('1.0 MB');
+    expect(humanSize(96 * 1024 * 1024)).toBe('96.0 MB');
   });
 });
