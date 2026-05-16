@@ -1,5 +1,6 @@
 // Main REPL entry point for minimal-agent
 import { apiClient } from './client.js';
+import type { ChatResult } from './client.js';
 import { loadConfig } from './config.js';
 import { getTools } from './tools/index.js';
 import type { Message, Config } from './types.js';
@@ -80,6 +81,30 @@ async function handleSlashCommand(input: string): Promise<boolean> {
   }
 }
 
+/**
+ * Format the result of an agentic tool-use turn into printable lines.
+ * Mirrors the TUI (REPL.tsx) semantics: surface each tool execution, then
+ * the assistant's final message.
+ */
+export function formatChatResult(result: ChatResult): string[] {
+  const lines: string[] = [];
+
+  for (const exec of result.toolExecutions) {
+    const preview =
+      exec.args.length > 120 ? exec.args.slice(0, 117) + '...' : exec.args;
+    lines.push(
+      `⚙  ${exec.name}(${preview})${exec.result.isError ? ' — error' : ''}`,
+    );
+  }
+
+  const content =
+    typeof result.message.content === 'string'
+      ? result.message.content
+      : JSON.stringify(result.message.content);
+  lines.push(content || '(no content)');
+  return lines;
+}
+
 async function runLoop(): Promise<void> {
   await apiClient.init();
   config = await loadConfig();
@@ -125,13 +150,12 @@ async function runLoop(): Promise<void> {
     try {
       const response = await apiClient.chatWithTools(messages);
 
-      if (response.toolResults.length > 0) {
-        console.log('Tool results:', response.toolResults);
+      for (const line of formatChatResult(response)) {
+        console.log(line);
       }
-
-      // Print response
-      console.log(response.message.content);
-      messages.push(response.message);
+      // Carry the full updated history forward (assistant + tool turns),
+      // matching the TUI path.
+      messages = response.messages;
 
       // Print status at bottom
       console.log(getStatusLine());
@@ -161,8 +185,10 @@ async function readline(prompt: string): Promise<string> {
 // Check for --tui flag
 const isTUI = process.argv.includes('--tui');
 
-if (isTUI) {
-  startTUI().catch(console.error);
-} else {
-  runLoop().catch(console.error);
+if (import.meta.main) {
+  if (isTUI) {
+    startTUI().catch(console.error);
+  } else {
+    runLoop().catch(console.error);
+  }
 }
