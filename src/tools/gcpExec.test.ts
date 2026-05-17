@@ -55,4 +55,32 @@ describe('runGcp', () => {
     expect(r.message).toContain('boom');
     expect(r.message).toContain('exit code: 2');
   });
+
+  it('reports a timeout instead of succeeding when the process is killed', async () => {
+    await fakeBin('gcloud', 'sleep 3; echo done');
+    process.env.PATH = bin;
+    const r = await runGcp('gcloud', ['logging', 'read'], 300);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/timed out after 300ms/i);
+  });
+
+  it('maps a gcloud auth failure to remediation', async () => {
+    await fakeBin(
+      'gcloud',
+      'echo "ERROR: (gcloud.container.clusters.get-credentials) You do not currently have an active account selected." 1>&2; exit 1',
+    );
+    process.env.PATH = bin;
+    const r = await runGcp('gcloud', ['container', 'clusters', 'get-credentials', 'c']);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/gcloud auth login/i);
+  });
+
+  it('does not mistake a non-auth gcloud error for an auth failure', async () => {
+    await fakeBin('gcloud', 'echo "ERROR: Permission denied while opening file /tmp/x" 1>&2; exit 1');
+    process.env.PATH = bin;
+    const r = await runGcp('gcloud', ['logging', 'read']);
+    expect(r.ok).toBe(true);
+    expect(r.message).toContain('exit code: 1');
+    expect(r.message).not.toMatch(/gcloud auth login/i);
+  });
 });
