@@ -58,7 +58,7 @@ describe('runGcp', () => {
 
   it('reports a timeout instead of succeeding when the process is killed', async () => {
     await fakeBin('gcloud', 'sleep 3; echo done');
-    process.env.PATH = bin;
+    process.env.PATH = `${bin}:${origPath}`;
     const r = await runGcp('gcloud', ['logging', 'read'], 300);
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/timed out after 300ms/i);
