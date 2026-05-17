@@ -1,47 +1,48 @@
-// Skill tool - invoke skills
+// Skill tool - invoke skills (user dir overrides built-ins)
 import { readdir, readFile } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
-import type { Tool, ToolResult, Skill } from '../types.js';
+import type { Tool, ToolResult } from '../types.js';
+import { getBuiltinSkill } from '../skills/index.js';
 
 const paramsSchema = z.object({
   name: z.string().describe('Name of the skill to invoke'),
   args: z.string().optional().describe('Arguments for the skill'),
 });
 
-const SKILLS_DIR = join(homedir(), '.claude', 'skills');
+function skillsDir(): string {
+  return join(process.env.HOME ?? homedir(), '.claude', 'skills');
+}
+
+async function readUserSkill(name: string): Promise<string | undefined> {
+  try {
+    const skillDir = join(skillsDir(), name);
+    const files = await readdir(skillDir);
+    const mdFiles = files.filter(f => f.endsWith('.md'));
+    if (mdFiles.length === 0) return undefined;
+    return await readFile(join(skillDir, mdFiles[0]), 'utf-8');
+  } catch {
+    return undefined;
+  }
+}
 
 export const skillTool: Tool = {
   name: 'skill',
   description: 'Invoke a skill by name',
   parameters: paramsSchema,
   async execute(params: Record<string, unknown>): Promise<ToolResult> {
-    const { name, args } = paramsSchema.parse(params);
+    const { name } = paramsSchema.parse(params);
 
-    try {
-      // Load skill content
-      const skillDir = join(SKILLS_DIR, name);
-      const files = await readdir(skillDir);
+    const userContent = await readUserSkill(name);
+    const content = userContent ?? getBuiltinSkill(name)?.content;
 
-      const mdFiles = files.filter(f => f.endsWith('.md'));
-      if (mdFiles.length === 0) {
-        return { content: `No skill found: ${name}`, isError: true };
-      }
-
-      const content = await readFile(join(skillDir, mdFiles[0]), 'utf-8');
-
-      // Execute skill - return content for the agent to process
-      return {
-        content: [
-          { type: 'text', text: `# Skill: ${name}\n\n${content}` },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: `Error loading skill: ${error}`,
-        isError: true,
-      };
+    if (content === undefined) {
+      return { content: `No skill found: ${name}`, isError: true };
     }
+
+    return {
+      content: [{ type: 'text', text: `# Skill: ${name}\n\n${content}` }],
+    };
   },
 };
