@@ -111,3 +111,20 @@ See [Adding MCP Servers](./add-mcp-server.md) for detailed instructions.
 ## Adding Custom Tools
 
 See [Adding Custom Tools](./add-tool.md) for detailed instructions.
+
+## Built-in debugging skills
+
+`minimal-agent` ships two built-in skills (invoke via the `skill` tool, or
+list them with the `/skills` command). A file of the same name under
+`~/.claude/skills/<name>/` overrides the built-in.
+
+- **gke-service-debug** — debug a GKE service. Reads env vars `GKE_PROJECT`,
+  `GKE_CLUSTER`, `GKE_LOCATION`, optional `SERVICE_REPO_PATH`, and optional
+  MySQL vars; asks interactively when unset. Uses ambient `gcloud`/`kubectl`
+  auth.
+- **transaction-flow-debug** — investigate a failed transaction by
+  `transaction_id`. Reads `MYSQL_DSN` (or `MYSQL_HOST`/`MYSQL_PORT`/
+  `MYSQL_USER`/`MYSQL_PASSWORD`/`MYSQL_DATABASE`); read-only queries only.
+
+Both rely on `gcloud`/`kubectl`/`mysql` being installed and authenticated;
+missing tools or credentials produce an actionable error.
