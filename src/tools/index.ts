@@ -14,6 +14,11 @@ import { askUserTool } from './ask_user.js';
 import { toolSearchTool } from './tool_search.js';
 import { skillTool } from './skill.js';
 import { mcpTool } from './mcp.js';
+import { gkeGetCredentialsTool } from './gke_get_credentials.js';
+import { gcloudLoggingTool } from './gcloud_logging.js';
+import { kubectlGetTool } from './kubectl_get.js';
+import { kubectlDescribeTool } from './kubectl_describe.js';
+import { kubectlLogsTool } from './kubectl_logs.js';
 
 const tools: Tool[] = [
   fileReadTool,
@@ -28,6 +33,11 @@ const tools: Tool[] = [
   toolSearchTool,
   skillTool,
   mcpTool,
+  gkeGetCredentialsTool,
+  gcloudLoggingTool,
+  kubectlGetTool,
+  kubectlDescribeTool,
+  kubectlLogsTool,
 ];
 
 export function getTools(): Tool[] {
